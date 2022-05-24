@@ -8,7 +8,11 @@ router.route('/login')
         res.status(200).send('hello world');
     })
 
+router.route('/verify')
+    .get(db.verifyUser);
+
 router.route('/register')
     .post(db.registerUser);
+
 
 module.exports = router;
