@@ -14,5 +14,7 @@ router.route('/verify')
 router.route('/register')
     .post(db.registerUser);
 
+router.route('/login')
+    .post(db.loginUser);
 
 module.exports = router;

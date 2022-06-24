@@ -4,8 +4,12 @@ const server = require('../server.js');
 const smtp = require('../interfaces/smtp_com');
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
+const emailValidator = require('email-validator');
+const req = require('express/lib/request');
 
 require('dotenv').config();
+
+const pretty = str => JSON.stringify(str, null, 4);
 
 exports.createTables = () => {
  
@@ -48,6 +52,56 @@ const addUser = (user, email, password, res) => {
             return;
         }
     })
+}
+
+exports.loginUser = (req, res) => {
+    if (
+        !req.body ||
+        !req.body.user ||
+        !req.body.password
+    ) return res.status(401).send('program error: missing credentials');
+
+    const { user, password } = req.body;
+
+    let sql;
+
+    if (emailValidator.validate(user)) sql = `SELECT user_id, user_name, email, password, status, server FROM users WHERE email='${user}'`;    
+    else sql = `SELECT user_id, user_name, email, password, status, server FROM users WHERE user_name='${user}'`;
+
+    server.dbPool.query(sql, (err, dbResult, fields) => {
+        if (err) {
+            console.log(pretty(err));
+            return res.status(401).send('Database Error. Please try again later.');
+        }
+
+        //console.log(pretty(dbResult));
+        
+        const status = dbResult.status;
+        
+        if (status === 'pending') return res.status(401).send('Please verify your email address.');
+        
+        const userId = dbResult[0].user_id;
+        const userName = dbResult[0].user_name;
+        const email = dbResult[0].email;
+        const server = dbResult[0].server;
+
+        console.log(pretty(dbResult[0].user_id), userId, userName, email, server);
+
+        let token = jwt.sign({
+            userId,
+            userName,
+            email,
+            server
+        }, process.env.SECRET_KEY);
+
+        const response = {userId: userId, userName: userName, email: email, server: server, token: token};
+        console.log('sending', pretty(response));
+
+        //return res.status(200).send();
+        return res.status(200).json(response);
+
+    });
+
 }
 
 exports.registerUser = (req, res) => {
